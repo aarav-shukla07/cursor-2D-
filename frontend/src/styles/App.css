@@ -1,0 +1,20 @@
+.app {
+  text-align: center;
+  padding: 2rem;
+  font-family: sans-serif;
+}
+
+form input {
+  padding: 0.5rem;
+  width: 300px;
+  margin-right: 1rem;
+}
+
+form button {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.video-container {
+  margin-top: 2rem;
+}
