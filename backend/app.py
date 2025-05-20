@@ -1,37 +1,51 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory
 import subprocess
 import os
 from llm_interface import get_animation_script
 from video_generator import generate_video
 import uuid
 import requests
+from flask_cors import CORS
+import re
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
 
 app = Flask(__name__)
+CORS(app)
 
-def get_manim_code_from_openrouter(prompt, model="mistralai/mixtral-8x7b-instruct"):
-    api_key = "c8408a93b0b050fb6cf5f46dd7dcb2272865df86af78ebe7f8d0ba418aca9313"
+
+
+def get_manim_code_from_openrouter(prompt):
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    print("API Key:", api_key)  # Debugging line to check if the API key is loaded correctly
+
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY not set in environment variables")
 
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "HTTP-Referer": "http://localhost",  # Required by OpenRouter
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
 
-    data = {
-        "model": model,
+    body = {
+        "model": "openai/gpt-4",  # or whatever model you use on OpenRouter
         "messages": [
-            {"role": "system", "content": "You are an expert in writing animations using Manim in Python."},
             {"role": "user", "content": prompt}
         ]
     }
 
-    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=body)
 
-    if response.status_code == 200:
-        return response.json()['choices'][0]['message']['content']
-    else:
-        print("Error:", response.text)
-        return None
+    if response.status_code != 200:
+        raise Exception("OpenRouter API call failed")
+
+    return response.json()['choices'][0]['message']['content']
+
+
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -42,9 +56,9 @@ def generate():
         return jsonify({"error": "Failed to get response from OpenRouter"}), 500
 
     filename = f"scene_{uuid.uuid4().hex}.py"
-    filepath = os.path.join("scenes", filename)
-    os.makedirs("scenes", exist_ok=True)
-    with open(file_path, "w") as f:
+    filepath = os.path.join("animations", filename)
+    os.makedirs("animations", exist_ok=True)
+    with open(filepath, "w") as f:
         f.write(manim_code)
     
     try:
@@ -53,7 +67,7 @@ def generate():
     except subprocess.CalledProcessError as e:
         return jsonify({"error": "Manim rendering failed", "details": str(e)}), 500
 
-    return send_file("media/videos/scene/output.mp4", mimetype='video/mp4')
+    return send_file("media/videos/animations/output.mp4", mimetype='video/mp4')
 
 @app.route('/download/<resolution>/<filename>', methods=['GET'])
 def download(resolution, filename):
