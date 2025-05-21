@@ -8,7 +8,9 @@ function App(){
       <h1>Cursor 2D Animation Generator</h1>
       <PromptForm />
     </div>
+    
   );
+  
 }
 
 export default App;
