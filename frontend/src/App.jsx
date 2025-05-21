@@ -11,12 +11,13 @@ function App() {
     <div className="app">
       <h1>Cursor 2D Animation Generator</h1>
       <PromptForm setVideoURL={setVideoURL} setVideoReady={setVideoReady} />
-      {videoReady && videoURL && (
-        <video width="800" height="450" controls autoPlay>
-          <source src={videoURL} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      )}
+      {videoReady && (
+  <video
+    src="http://localhost:5000/get_video"
+    controls
+    style={{ width: "100%", maxWidth: "720px", marginTop: "20px" }}
+  />
+)}
 
     </div>
   );
