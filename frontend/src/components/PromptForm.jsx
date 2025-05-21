@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const PromptForm = () => {
+const PromptForm = ({ setVideoURL, setVideoReady }) => {
     const [prompt, setPrompt] = useState("");
-    const [videoURL, setVideoURL] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -12,12 +11,15 @@ const PromptForm = () => {
         setLoading(true);
         setVideoURL("");
         setError("");
+        setVideoReady(false);
 
         try {
             const response = await axios.post("http://localhost:5000/generate", { prompt });
             const url = response.data.video_url;
             if (!url) throw new Error("Video URL not returned from backend");
-            setVideoURL(url);
+
+            setVideoURL(`${url}?t=${Date.now()}`);
+            setVideoReady(true);
         } catch (err) {
             const errMsg = err.response?.data?.error || err.message || "Unknown error occurred.";
             setError(errMsg);
@@ -29,6 +31,7 @@ const PromptForm = () => {
     const handleRetry = async () => {
         setLoading(true);
         setVideoURL("");
+        setVideoReady(false);
 
         try {
             const retryResponse = await axios.post("http://localhost:5000/retry", {
@@ -38,7 +41,9 @@ const PromptForm = () => {
 
             const url = retryResponse.data.video_url;
             if (!url) throw new Error("Retry succeeded but video URL missing");
+
             setVideoURL(url);
+            setVideoReady(true);
             setError("");
         } catch (retryErr) {
             const retryMsg = retryErr.response?.data?.error || retryErr.message || "Retry failed.";
@@ -70,16 +75,8 @@ const PromptForm = () => {
                     </button>
                 </div>
             )}
-
-            {videoURL && (
-                <div style={{ marginTop: "1rem" }}>
-                    <video src={videoURL} controls autoPlay muted width="480" />
-                    <p>{videoURL}</p>
-                </div>
-            )}
         </div>
     );
 };
 
 export default PromptForm;
-
