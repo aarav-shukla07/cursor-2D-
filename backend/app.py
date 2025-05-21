@@ -1,8 +1,9 @@
 import os
 import re
 import subprocess
+import time
 import traceback
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, make_response
 from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -17,7 +18,7 @@ client = OpenAI(
 )
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 # ANIMATION_DIR = "animations"
 # VIDEO_DIR = "media/videos/generated_scene/1080p15"
@@ -97,8 +98,9 @@ def generate():
         ], check=True)
 
         return jsonify({
-            "video_url": f"http://localhost:5000/get_video"
+            "video_url": f"http://localhost:5000/get_video?{int(time.time())}"
         })
+
 
     except subprocess.CalledProcessError as e:
         return jsonify({"error": f"Manim rendering failed: {e}"}), 500
@@ -143,15 +145,17 @@ def retry_generation():
 # def serve_1080p60_video(filename):
 #     return send_from_directory("media/videos/generated_scene/1080p15", filename)
 
-@app.route("/get_video", methods=["GET"])
+@app.route('/get_video')
 def get_video():
-    video_path = os.path.abspath("media/videos/generated_scene/1080p15/output.mp4")
-    print("Trying to send video from:", video_path)
+    try:
+        print("Trying to send video from:", VIDEO_PATH)
+        response = make_response(send_file(VIDEO_PATH, mimetype="video/mp4"))
+        response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"  # 👈 important!
+        return response
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    if os.path.exists(video_path):
-        return send_file(video_path, mimetype='video/mp4')
-    
-    return "Video not found", 404
 
 
 def get_fixed_code(prompt, error_msg):
