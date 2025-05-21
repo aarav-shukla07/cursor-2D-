@@ -19,14 +19,19 @@ client = OpenAI(
 app = Flask(__name__)
 CORS(app)
 
-ANIMATION_DIR = "animations"
-VIDEO_DIR = "media/videos/generated_scene/1080p15"
-os.makedirs(ANIMATION_DIR, exist_ok=True)
-os.makedirs(VIDEO_DIR, exist_ok=True)
+# ANIMATION_DIR = "animations"
+# VIDEO_DIR = "media/videos/generated_scene/1080p15"
+# os.makedirs(ANIMATION_DIR, exist_ok=True)
+# os.makedirs(VIDEO_DIR, exist_ok=True)
 
 @app.route('/')
 def home():
     return "Server is running!"
+
+ANIMATION_DIR = "animations"
+OUTPUT_FILENAME = "output.mp4"
+MEDIA_DIR = "media"
+VIDEO_PATH = os.path.join(MEDIA_DIR, "videos", "generated_scene", "1080p15", OUTPUT_FILENAME)
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -42,26 +47,26 @@ def generate():
                 {
                     "role": "system",
                     "content": (
-                            "You are a senior Python developer specialized in Manim (Community Edition v0.18 or later).\n"
-                            "Your task is to generate a complete and correct Python script that creates a Manim animation.\n\n"
-                            "STRICT INSTRUCTIONS:\n"
-                            "- Output must be ONLY valid Python code.\n"
-                            "- Do NOT include any extra text like 'Here is the code' or explanations.\n"
-                            "- Always start the code with:\n"
-                            "    from manim import *\n"
-                            "- Always define exactly one scene class:\n"
-                            "    class GeneratedScene(Scene):\n"
-                            "- Use only standard Manim methods (like Create, FadeIn, Transform, MoveToTarget, wait(), etc.).\n"
-                            "- Ensure the code runs with this command:\n"
-                            "    manim -pql animations/generated_scene.py GeneratedScene -o output.mp4\n"
-                            "- Avoid any deprecated or unstable syntax.\n"
-                            "- Do NOT use markdown (```) or comments.\n\n"
-                            "USER PROMPT:\n"
-                            "\"\"\"\n"
-                            "<USER_ANIMATION_REQUEST_HERE>\n"
-                            "\"\"\"\n\n"
-                            "Output only the clean, correct Python code compatible with ManimCE. No surrounding text."
-                        )   
+                        "You are a senior Python developer specialized in Manim (Community Edition v0.18 or later).\n"
+                        "Your task is to generate a complete and correct Python script that creates a Manim animation.\n\n"
+                        "STRICT INSTRUCTIONS:\n"
+                        "- Output must be ONLY valid Python code.\n"
+                        "- Do NOT include any extra text like 'Here is the code' or explanations.\n"
+                        "- Always start the code with:\n"
+                        "    from manim import *\n"
+                        "- Always define exactly one scene class:\n"
+                        "    class GeneratedScene(Scene):\n"
+                        "- Use only standard Manim methods (like Create, FadeIn, Transform, MoveToTarget, wait(), etc.).\n"
+                        "- Ensure the code runs with this command:\n"
+                        "    manim -pql animations/generated_scene.py GeneratedScene -o output.mp4\n"
+                        "- Avoid any deprecated or unstable syntax.\n"
+                        "- Do NOT use markdown (```) or comments.\n\n"
+                        "USER PROMPT:\n"
+                        "\"\"\"\n"
+                        "<USER_ANIMATION_REQUEST_HERE>\n"
+                        "\"\"\"\n\n"
+                        "Output only the clean, correct Python code compatible with ManimCE. No surrounding text."
+                    )
                 },
                 { "role": "user", "content": prompt }
             ]
@@ -75,6 +80,7 @@ def generate():
             code = "from manim import *\nimport numpy as np\n\n" + code
 
         scene_file = os.path.join(ANIMATION_DIR, "generated_scene.py")
+        os.makedirs(ANIMATION_DIR, exist_ok=True)
         with open(scene_file, "w") as f:
             f.write(code)
 
@@ -83,13 +89,15 @@ def generate():
             return jsonify({"error": "No Scene class found in code"}), 400
         scene_name = match.group(1)
 
-        output_file = "output.mp4"
+        # Run Manim with forced output directory
         subprocess.run([
-            "manim", "-pql", scene_file, scene_name, "-o", output_file, "-r", "1920,1080"
+            "manim", "-pql", scene_file, scene_name,
+            "-o", OUTPUT_FILENAME, "-r", "1920,1080",
+            "--media_dir", MEDIA_DIR
         ], check=True)
 
         return jsonify({
-            "video_url": f"http://localhost:5000/videos/1080p60/{output_file}"
+            "video_url": f"http://localhost:5000/get_video"
         })
 
     except subprocess.CalledProcessError as e:
@@ -131,18 +139,20 @@ def retry_generation():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-@app.route('/videos/1080p60/<path:filename>')
-def serve_1080p60_video(filename):
-    return send_from_directory("media/videos/generated_scene/1080p15", filename)
+# @app.route('/videos/1080p60/<path:filename>')
+# def serve_1080p60_video(filename):
+#     return send_from_directory("media/videos/generated_scene/1080p15", filename)
 
 @app.route("/get_video", methods=["GET"])
 def get_video():
-    video_path = os.path.abspath('media/videos/generated_scene/1080p15/output.mp4')
+    video_path = os.path.abspath("media/videos/generated_scene/1080p15/output.mp4")
+    print("Trying to send video from:", video_path)
 
     if os.path.exists(video_path):
         return send_file(video_path, mimetype='video/mp4')
     
     return "Video not found", 404
+
 
 def get_fixed_code(prompt, error_msg):
     system_message = {
