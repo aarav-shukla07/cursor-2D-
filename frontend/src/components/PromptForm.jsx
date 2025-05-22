@@ -14,11 +14,14 @@ const PromptForm = ({ setVideoURL, setVideoReady }) => {
         setVideoReady(false);
 
         try {
-            const response = await axios.post("http://localhost:5000/generate", { prompt });
-            const url = response.data.video_url;
-            if (!url) throw new Error("Video URL not returned from backend");
+            const response = await axios.post("http://localhost:5000/generate", { prompt }, {
+                responseType: "blob"
+            });
 
-            setVideoURL(`${url}?t=${Date.now()}`);
+            const blob = new Blob([response.data], { type: "video/mp4" });
+            const videoBlobUrl = URL.createObjectURL(blob);
+
+            setVideoURL(videoBlobUrl);
             setVideoReady(true);
         } catch (err) {
             const errMsg = err.response?.data?.error || err.message || "Unknown error occurred.";
@@ -28,51 +31,23 @@ const PromptForm = ({ setVideoURL, setVideoReady }) => {
         setLoading(false);
     };
 
-    const handleRetry = async () => {
-        setLoading(true);
-        setVideoURL("");
-        setVideoReady(false);
-
-        try {
-            const retryResponse = await axios.post("http://localhost:5000/retry", {
-                prompt,
-                errorMessage: error,
-            });
-
-            const url = retryResponse.data.video_url;
-            if (!url) throw new Error("Retry succeeded but video URL missing");
-
-            setVideoURL(url);
-            setVideoReady(true);
-            setError("");
-        } catch (retryErr) {
-            const retryMsg = retryErr.response?.data?.error || retryErr.message || "Retry failed.";
-            setError(retryMsg);
-        }
-
-        setLoading(false);
-    };
-
     return (
         <div>
-            <form onSubmit={handleGenerate}>
-                <input
-                    type="text"
-                    placeholder="Enter your prompt..."
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                />
-                <button type="submit" disabled={loading}>
-                    {loading ? "Generating..." : "Generate"}
-                </button>
-            </form>
+            <form className="prompt-form" onSubmit={handleGenerate}>
+  <input
+    type="text"
+    value={prompt}
+    onChange={(e) => setPrompt(e.target.value)}
+    placeholder="Enter your animation prompt..."
+    className="prompt-input"
+  />
+  <button type="submit" className="generate-button">▶</button>
+</form>
+
 
             {error && (
                 <div style={{ marginTop: "1rem", color: "red" }}>
                     <p><strong>Error:</strong> {error}</p>
-                    <button onClick={handleRetry} disabled={loading}>
-                        {loading ? "Retrying..." : "Retry Fix"}
-                    </button>
                 </div>
             )}
         </div>
