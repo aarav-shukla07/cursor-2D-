@@ -6,7 +6,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
 
 form input {
@@ -119,6 +118,7 @@ form button {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  padding-bottom: 120px;
 }
 
 .chat-bubble {
@@ -130,6 +130,7 @@ form button {
   line-height: 1.5;
   word-wrap: break-word;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
 }
 
 .user-bubble {
@@ -146,4 +147,14 @@ form button {
   border-bottom-left-radius: 0;
 }
 
+.retry-button {
+  background-color: #ff6464;
+  border: none;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
 
