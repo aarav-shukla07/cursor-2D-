@@ -32,18 +32,18 @@ const PromptForm = ({ setVideoURL, setVideoReady }) => {
     };
 
     return (
-        <div>
-            <form className="prompt-form" onSubmit={handleGenerate}>
-  <input
-    type="text"
-    value={prompt}
-    onChange={(e) => setPrompt(e.target.value)}
-    placeholder="Enter your animation prompt..."
-    className="prompt-input"
-  />
-  <button type="submit" className="generate-button">▶</button>
-</form>
-
+        <div className="input-wrapper">
+            <form onSubmit={handleGenerate}>
+                <input
+                    type="text"
+                    placeholder="Enter your prompt..."
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                />
+                <button type="submit" disabled={loading}>
+                    {loading ? "..." : "→"}
+                </button>
+            </form>
 
             {error && (
                 <div style={{ marginTop: "1rem", color: "red" }}>
