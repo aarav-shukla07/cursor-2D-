@@ -3,7 +3,7 @@ import re
 import subprocess
 import time
 import traceback
-from flask import Flask, request, jsonify, send_from_directory, send_file, make_response
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -11,7 +11,6 @@ import requests
 
 load_dotenv()
 
-# OpenRouter setup
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY")
@@ -20,19 +19,14 @@ client = OpenAI(
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
-# ANIMATION_DIR = "animations"
-# VIDEO_DIR = "media/videos/generated_scene/1080p15"
-# os.makedirs(ANIMATION_DIR, exist_ok=True)
-# os.makedirs(VIDEO_DIR, exist_ok=True)
-
-@app.route('/')
-def home():
-    return "Server is running!"
-
 ANIMATION_DIR = "animations"
 OUTPUT_FILENAME = "output.mp4"
 MEDIA_DIR = "media"
 VIDEO_PATH = os.path.join(MEDIA_DIR, "videos", "generated_scene", "1080p15", OUTPUT_FILENAME)
+
+@app.route('/')
+def home():
+    return "Server is running!"
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -80,8 +74,8 @@ def generate():
         if "from manim" not in code:
             code = "from manim import *\nimport numpy as np\n\n" + code
 
-        scene_file = os.path.join(ANIMATION_DIR, "generated_scene.py")
         os.makedirs(ANIMATION_DIR, exist_ok=True)
+        scene_file = os.path.join(ANIMATION_DIR, "generated_scene.py")
         with open(scene_file, "w") as f:
             f.write(code)
 
@@ -90,17 +84,25 @@ def generate():
             return jsonify({"error": "No Scene class found in code"}), 400
         scene_name = match.group(1)
 
-        # Run Manim with forced output directory
         subprocess.run([
-            "manim", "-pql", scene_file, scene_name,
+            "manim", "-ql", scene_file, scene_name,
             "-o", OUTPUT_FILENAME, "-r", "1920,1080",
             "--media_dir", MEDIA_DIR
         ], check=True)
 
-        return jsonify({
-            "video_url": f"http://localhost:5000/get_video?{int(time.time())}"
-        })
+        # Wait until video is fully written
+        while not os.path.exists(VIDEO_PATH):
+            time.sleep(0.1)
 
+        while True:
+            try:
+                with open(VIDEO_PATH, "rb") as f:
+                    f.read()
+                break
+            except Exception:
+                time.sleep(0.1)
+
+        return send_file(VIDEO_PATH, mimetype="video/mp4")
 
     except subprocess.CalledProcessError as e:
         return jsonify({"error": f"Manim rendering failed: {e}"}), 500
@@ -108,103 +110,5 @@ def generate():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-@app.route('/retry', methods=['POST'])
-def retry_generation():
-    data = request.json
-    prompt = data.get('prompt')
-    error_msg = data.get('errorMessage')
-
-    try:
-        fixed_code = get_fixed_code(prompt, error_msg)
-
-        match = re.search(r'class\s+(\w+)\s*\(\s*Scene\s*\):', fixed_code)
-        if not match:
-            return jsonify({"error": "No Scene class in fixed code"}), 400
-        scene_name = match.group(1)
-
-        with open(os.path.join(ANIMATION_DIR, "generated_scene.py"), "w") as f:
-            f.write(fixed_code)
-
-        subprocess.run([
-            "manim", "-pql", os.path.join(ANIMATION_DIR, "generated_scene.py"),
-            scene_name, "-o", "output.mp4", "-r", "1920,1080"
-        ], check=True)
-
-        return jsonify({
-            "message": "Video regenerated successfully!",
-            "video_url": "http://localhost:5000/videos/1080p60/output.mp4"
-        })
-
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": f"Manim retry rendering failed: {e}"}), 500
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-# @app.route('/videos/1080p60/<path:filename>')
-# def serve_1080p60_video(filename):
-#     return send_from_directory("media/videos/generated_scene/1080p15", filename)
-
-@app.route('/get_video')
-def get_video():
-    try:
-        print("Trying to send video from:", VIDEO_PATH)
-        response = make_response(send_file(VIDEO_PATH, mimetype="video/mp4"))
-        response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"  # 👈 important!
-        return response
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-
-def get_fixed_code(prompt, error_msg):
-    system_message = {
-        "role": "system",
-        "content": (
-        "You are an expert Python developer and animation engineer with deep knowledge of the Manim Community Edition (v0.18 or later).\n\n"
-        "Your task is to fix the following Manim code so that it runs correctly without any syntax or runtime errors.\n\n"
-        "Instructions:\n"
-        "- Output MUST be valid and corrected Python code ONLY (no markdown formatting, no comments, no explanations).\n"
-        "- Include necessary imports like:\n"
-        "    from manim import *\n\n"
-        "- Ensure the code defines a class named `GeneratedScene(Scene)`.\n"
-        "- Fix any deprecated methods, incorrect parameters, or outdated syntax.\n"
-        "- Use valid constructs like: Circle, Square, Text, Arrow, Line, Create, FadeIn, Transform, MoveToTarget, wait(), etc.\n"
-        "- Do NOT include any extra text like 'Here is the corrected code'.\n"
-        "- The fixed code must be compatible with Python 3.12 and ManimCE.\n"
-        "- Output file will be saved as `animations/generated_scene.py`.\n"
-        "- The scene must run with:\n"
-        "    manim -pql animations/generated_scene.py GeneratedScene -o output.mp4\n\n"
-        "Here is the code with errors:\n"
-        "\"\"\"\n"
-        "<BUGGY_MANIM_CODE_HERE>\n"
-        "\"\"\"\n\n"
-        "Output ONLY the corrected Python code including all necessary imports."
-    )
-    }
-
-    user_message = {
-        "role": "user",
-        "content": f"""The prompt was:\n{prompt}\n\nThe error was:\n{error_msg}\n\nFix it and return only the fixed Python code."""
-    }
-
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "meta-llama/llama-3-8b-instruct",
-            "messages": [system_message, user_message]
-        }
-    )
-
-    result = response.json()
-    code = result['choices'][0]['message']['content']
-    code = re.sub(r"^```(?:python)?|```$", "", code, flags=re.MULTILINE).strip()
-    return code
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False, use_reloader=False)
