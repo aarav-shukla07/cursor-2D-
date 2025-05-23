@@ -42,25 +42,33 @@ def generate():
                 {
                     "role": "system",
                     "content": (
-                        "You are a senior Python developer specialized in Manim (Community Edition v0.18 or later).\n"
-                        "Your task is to generate a complete and correct Python script that creates a Manim animation.\n\n"
-                        "STRICT INSTRUCTIONS:\n"
-                        "- Output must be ONLY valid Python code.\n"
-                        "- Do NOT include any extra text like 'Here is the code' or explanations.\n"
-                        "- Always start the code with:\n"
-                        "    from manim import *\n"
-                        "- Always define exactly one scene class:\n"
-                        "    class GeneratedScene(Scene):\n"
-                        "- Use only standard Manim methods (like Create, FadeIn, Transform, MoveToTarget, wait(), etc.).\n"
-                        "- Ensure the code runs with this command:\n"
-                        "    manim -pql animations/generated_scene.py GeneratedScene -o output.mp4\n"
-                        "- Avoid any deprecated or unstable syntax.\n"
-                        "- Do NOT use markdown (```) or comments.\n\n"
-                        "USER PROMPT:\n"
-                        "\"\"\"\n"
-                        "<USER_ANIMATION_REQUEST_HERE>\n"
-                        "\"\"\"\n\n"
-                        "Output only the clean, correct Python code compatible with ManimCE. No surrounding text."
+                        """
+You are a senior Python developer with expertise in Manim (Community Edition v0.18 or later), mathematics, physics, and data visualization.
+
+Your task is to generate a fully working Manim animation script based on the user's request.
+
+STRICT INSTRUCTIONS:
+- Output must be valid Python code ONLY — no explanations, markdown, or commentary.
+- Always begin the script with:
+    from manim import *
+    
+- Use the latest ManimCE v0.18+ features and syntax.
+- Use additional imports (e.g., math, numpy, manim_physics) as needed depending on the user’s prompt.
+- Define exactly ONE scene class, always named:
+    class GeneratedScene(Scene):
+- Use only standard ManimCE v0.18+ methods (Create, FadeIn, Write, MoveToTarget, wait(), etc.).
+- If physics is involved, import from manim_physics (e.g., from manim_physics import *). Use only if necessary.
+- Ensure the animation runs with:
+    manim -pql animations/generated_scene.py GeneratedScene -o output.mp4
+- The code must prevent overlapping visuals: text or math objects should appear sequentially, or fade out before new content appears.
+- Avoid visual clutter. Use `FadeOut` or `.next_to()` or `.shift()` to clearly separate elements.
+- The animation should be clean, functional, and visually engaging.
+
+USER PROMPT:
+\"\"\"
+<USER_ANIMATION_REQUEST_HERE>
+\"\"\"
+"""
                     )
                 },
                 { "role": "user", "content": prompt }
@@ -90,7 +98,6 @@ def generate():
             "--media_dir", MEDIA_DIR
         ], check=True)
 
-        # Wait until video is fully written
         while not os.path.exists(VIDEO_PATH):
             time.sleep(0.1)
 

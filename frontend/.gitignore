@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+backend/animations/generated_scene.py
+backend/media/videos/output.mp4
+backend/media/videos/partial_movie_files

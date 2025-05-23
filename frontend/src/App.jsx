@@ -21,7 +21,7 @@ function App() {
     setVideoReady(false);
     setVideoURL("");
 
-    // Remove previous bot-related messages if retrying
+
     if (isRetry) {
       setMessages(prev =>
         prev.filter(msg =>
@@ -50,7 +50,7 @@ function App() {
       setVideoURL(videoBlobUrl);
       setVideoReady(true);
 
-      // Remove "Generating video..." message
+
       setMessages(prev => prev.filter(msg => msg.text !== "Generating video..."));
     } catch (err) {
       setMessages(prev =>
@@ -74,6 +74,10 @@ function App() {
       {!hasGenerated && (
         <div className="welcome-message">
           <h1>Welcome to Cursor-2D Animation</h1>
+          <p style={{ fontSize: "18px", marginTop: "10px", color: "gray" }}>
+            Enter a prompt to generate a 2D animation. The animation will be
+            generated based on your input.
+          </p>
         </div>
       )}
 
@@ -97,8 +101,8 @@ function App() {
               className={`chat-bubble ${msg.type}`}
               style={
                 msg.type === "user"
-                  ? { marginLeft: "100px", alignSelf: "flex-end" }
-                  : { marginRight: "100px", alignSelf: "flex-start" }
+                  ? { marginLeft: "400px", alignSelf: "flex-end" }
+                  : { marginRight: "400px", alignSelf: "flex-start" }
               }
             >
               {msg.text}
@@ -138,7 +142,15 @@ function App() {
       </div>
 
       <PromptForm onSendPrompt={handleSendPrompt} loading={loading} />
+      {!hasGenerated && (
+        <video autoPlay loop muted className="background-video">
+          <source src="src/assets/cursor.mp4" type="video/mp4" />
+        </video>
+      )}
+
+
     </div>
+
   );
 }
 
